@@ -1,0 +1,134 @@
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador Outlook – Encuentra los correos peligrosos</title>
+<style>
+  :root{
+    --blue:#0f6cbd; --blue-dark:#0b5a9d; --bg:#f5f5f5; --panel:#ffffff; --line:#e1e1e1;
+    --text:#242424; --muted:#616161; --sel:#ebf3fc; --danger:#c4314b; --danger-bg:#fdf3f4;
+    --ok:#107c10; --ok-bg:#f1faf1; --warn:#8a6100; --warn-bg:#fff8e1;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;color:var(--text);background:var(--bg);font-size:14px;color-scheme:light}
+  button{font:inherit;cursor:pointer}
+  .app{display:flex;flex-direction:column;height:100%;min-height:480px}
+
+  /* Barra superior */
+  .top{background:var(--blue);color:#fff;display:flex;align-items:center;gap:12px;padding:0 12px;height:44px;flex:none}
+  .logo{font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px;white-space:nowrap}
+  .logo i{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:4px;background:#fff;color:var(--blue);font-style:normal;font-weight:700;font-size:13px}
+  .search{flex:1;max-width:420px;margin:0 auto;background:rgba(255,255,255,.18);border-radius:4px;padding:6px 10px;font-size:13px;color:#e8f1fa}
+  .me{width:28px;height:28px;border-radius:50%;background:#fff;color:var(--blue);display:grid;place-items:center;font-weight:700;font-size:12px}
+
+  /* Misión */
+  .mission{background:var(--warn-bg);border-bottom:1px solid #f0dc9a;padding:8px 14px;font-size:13px;display:flex;gap:10px;align-items:center;flex:none}
+  .mission b{color:var(--warn)}
+
+  /* Cuerpo */
+  .body{flex:1;display:flex;min-height:0}
+  .folders{width:170px;background:#fafafa;border-right:1px solid var(--line);padding:10px 0;flex:none}
+  .folders div{padding:7px 16px;color:var(--muted);display:flex;justify-content:space-between}
+  .folders .on{background:var(--sel);color:var(--text);font-weight:600;border-left:3px solid var(--blue);padding-left:13px}
+  .list{width:340px;background:var(--panel);border-right:1px solid var(--line);overflow:auto;flex:none}
+  .list h2{margin:0;padding:10px 14px;font-size:14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff;z-index:1}
+  .mail{display:flex;gap:10px;padding:10px 14px;border-bottom:1px solid #f0f0f0;cursor:pointer;border-left:3px solid transparent;position:relative;text-align:left;width:100%;background:none;border-top:0;border-right:0;color:inherit}
+  .mail:hover{background:#f7f7f7}
+  .mail.sel{background:var(--sel);border-left-color:var(--blue)}
+  .avatar{width:34px;height:34px;border-radius:50%;color:#fff;display:grid;place-items:center;font-weight:600;font-size:13px;flex:none}
+  .mail .t{flex:1;min-width:0}
+  .mail .r1{display:flex;justify-content:space-between;gap:8px}
+  .mail .from{font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mail.unread .from,.mail.unread .subj{font-weight:700}
+  .mail .time{font-size:12px;color:var(--muted);white-space:nowrap}
+  .mail .subj{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--blue-dark)}
+  .mail .prev{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .flagmark{position:absolute;right:10px;bottom:8px;font-size:13px}
+
+  .reader{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;background:var(--panel)}
+  .empty{margin:auto;color:var(--muted);text-align:center;padding:20px}
+  .empty big{display:block;font-size:40px;margin-bottom:8px}
+  .rd{flex:1;overflow:auto;padding:18px 22px 40px}
+  .back{display:none;border:0;background:none;color:var(--blue);padding:0 0 10px}
+  .rd h1{margin:0 0 12px;font-size:19px;font-weight:600}
+  .sender{display:flex;gap:10px;align-items:flex-start;margin-bottom:6px}
+  .sender .avatar{width:40px;height:40px}
+  .sname{font-weight:600;color:var(--text)}
+  .linkurl{font-size:12px;color:#444;background:#f3f3f3;border:1px solid #e0e0e0;border-radius:4px;padding:5px 9px;margin:-6px 0 14px;word-break:break-all;max-width:100%}
+  .linkurl b{color:#0b3a66}
+  .addr{display:inline-block;margin-left:4px;font-size:13px;color:var(--muted);word-break:break-all}
+  .addr[hidden]{display:none}
+  .addr.show{background:#eef6ff;border:1px solid #bcd9f5;border-radius:4px;padding:1px 7px;color:#0b3a66}
+  .meta{font-size:12px;color:var(--muted)}
+  .sender{margin-bottom:14px}
+  .msg{border-top:1px solid var(--line);padding-top:14px;line-height:1.55;max-width:640px}
+  .msg p{margin:0 0 12px}
+  .cta{display:inline-block;background:var(--blue);color:#fff!important;text-decoration:none;padding:9px 16px;border-radius:4px;font-weight:600;margin:4px 0 12px}
+  .msg a{color:var(--blue)}
+  .att{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:6px;padding:7px 12px;background:#fafafa;margin:4px 0 12px;cursor:pointer;color:var(--text);text-decoration:none}
+  .att:hover{background:#f0f0f0}
+  .sig{color:var(--muted);font-size:13px}
+  .actions{display:flex;gap:8px;margin:0 0 14px;flex-wrap:wrap}
+  .flagbtn{border:1px solid #c8c8c8;background:#fff;border-radius:4px;padding:6px 12px;display:inline-flex;gap:6px;align-items:center}
+  .flagbtn:hover{background:#f5f5f5}
+  .flagbtn.on{background:var(--danger);color:#fff;border-color:var(--danger)}
+  .status{position:absolute;left:0;bottom:0;max-width:92%;background:#f0f0f0;border:1px solid #c8c8c8;border-left:0;border-bottom:0;padding:3px 10px;font-size:12px;color:#333;display:none;word-break:break-all;z-index:3}
+
+  /* Barra inferior */
+  .bar{flex:none;background:#fff;border-top:1px solid var(--line);padding:9px 14px;display:flex;align-items:center;gap:12px}
+  .bar .count{font-weight:600}
+  .bar .count span{color:var(--danger)}
+  .bar .grow{flex:1}
+  .primary{background:var(--blue);color:#fff;border:0;border-radius:4px;padding:8px 16px;font-weight:600}
+  .primary:hover{background:var(--blue-dark)}
+  .primary:disabled{background:#c8c8c8;cursor:not-allowed}
+  .ghost{background:#fff;border:1px solid #b5b5b5;border-radius:4px;padding:8px 14px}
+  .ghost:hover{background:#f3f3f3}
+
+  /* Toast */
+  .toast{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);background:#323232;color:#fff;padding:9px 16px;border-radius:6px;font-size:13px;max-width:90%;box-shadow:0 4px 14px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:opacity .2s;z-index:20;text-align:center}
+  .toast.show{opacity:1}
+
+  /* Resultado */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:14px;z-index:10}
+  .overlay.show{display:flex}
+  .modal{background:#fff;border-radius:10px;max-width:640px;width:100%;max-height:100%;overflow:auto;padding:22px 24px;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+  .modal h2{margin:0 0 6px;font-size:21px}
+  .modal .lead{margin:0 0 14px;color:var(--muted)}
+  .res{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;gap:10px}
+  .res .ic{font-size:18px;line-height:1.3}
+  .res.bad{background:var(--danger-bg);border-color:#f1c4cc}
+  .res.good{background:var(--ok-bg);border-color:#c5e5c5}
+  .res b{display:block}
+  .res small{color:#444;font-size:13px;line-height:1.45;display:block;margin-top:2px}
+  .rule{background:#eef6ff;border-radius:8px;padding:10px 12px;font-size:13px;margin:12px 0}
+  .mbtns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+
+  /* Móvil */
+  @media (max-width:760px){
+    .folders{display:none}
+    .list{width:100%;border-right:0}
+    .reader{display:none;width:100%}
+    .body.reading .list{display:none}
+    .body.reading .reader{display:flex}
+    .back{display:block}
+    .search{display:none}
+    .mission{flex-wrap:wrap}
+    .rd{padding:14px 14px 40px}
+  }
+  @media (min-width:761px) and (max-width:980px){ .folders{display:none} .list{width:300px} }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="logo"><i>O</i> Outlook</div>
+    <div class="search">🔍 Buscar en el correo</div>
+    <div class="me" title="Tú">TÚ</div>
+  </div>
+
+  <div class="mission">
+    <span>🔎 <b>Misión:</b> dos de
