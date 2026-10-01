@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -131,4 +130,234 @@
   </div>
 
   <div class="mission">
-    <span>🔎 <b>Misión:</b> dos de
+    <span>🔎 <b>Misión:</b> dos de estos 6 correos son <b>peligrosos</b>. Investígalos y márcalos con la bandera 🚩</span>
+  </div>
+
+  <div class="body" id="body">
+    <nav class="folders" aria-label="Carpetas">
+      <div class="on"><span>📥 Bandeja de entrada</span><span>6</span></div>
+      <div><span>📤 Enviados</span></div>
+      <div><span>📝 Borradores</span></div>
+      <div><span>🗑️ Elementos eliminados</span></div>
+      <div><span>⚠️ Correo no deseado</span></div>
+    </nav>
+
+    <section class="list" aria-label="Lista de correos">
+      <h2>Bandeja de entrada</h2>
+      <div id="list"></div>
+    </section>
+
+    <section class="reader" id="reader" aria-live="polite">
+      <div class="status" id="status"></div>
+      <div class="empty" id="empty"><big>✉️</big>Selecciona un correo para leerlo e investigarlo.</div>
+      <div class="rd" id="rd" hidden></div>
+    </section>
+  </div>
+
+  <div class="bar">
+    <div class="count">Correos marcados como peligrosos: <span id="count">0</span> / 2</div>
+    <div class="grow"></div>
+    <button class="ghost" id="solBtn" type="button">Ver solución</button>
+    <button class="primary" id="checkBtn" type="button" disabled>Comprobar</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+<div class="overlay" id="overlay"><div class="modal" id="modal" role="dialog" aria-modal="true"></div></div>
+
+<script>
+(function(){
+  /* ---------- DATOS ---------- */
+  var MAILS = [
+    {
+      id:'nomina', color:'#107c10', initials:'RRHH', name:'Recursos Humanos', addr:'rrhh@lafact.cat', time:'09:12', when:'Hoy, 09:12',
+      subj:'Nómina disponible', prev:'Tu nómina de octubre ya está disponible en el portal del empleado.',
+      body:'<p>Buenos días,</p><p>Te informamos de que ya tienes disponible la <b>nómina de octubre</b> en el portal del empleado.</p><p>Puedes acceder con tu usuario habitual de la intranet:</p><p><a class="cta" href="#" data-url="https://intranet.lafact.cat/nomines">Ir al portal del empleado</a></p><p class="sig">Recursos Humanos · LaFACT</p>',
+      danger:false,
+      why:'<b>Seguro.</b> El remitente es una dirección interna (<i>@lafact.cat</i>), el enlace lleva a la intranet de la empresa y no hay prisas ni amenazas.'
+    },
+    {
+      id:'factura', color:'#8764b8', initials:'SP', name:'Suministros Pons', addr:'facturacio@subministrapons.cat', time:'08:47', when:'Hoy, 08:47',
+      subj:'Factura proveedor habitual', prev:'Adjuntamos la factura F-2026-0342 del servicio de octubre.',
+      body:'<p>Buenos días,</p><p>Adjuntamos la factura <b>F-2026-0342</b> correspondiente al servicio de mantenimiento de octubre (importe: 312,40 €).</p><p>El pago se realiza en la misma cuenta de siempre.</p><a class="att" href="#" data-file="Factura_F-2026-0342.pdf">📄 Factura_F-2026-0342.pdf <small style="color:#777">· 84 KB</small></a><p class="sig">Atentamente,<br>Departamento de facturación · Suministros Pons</p>',
+      danger:false,
+      why:'<b>Seguro.</b> Es un proveedor que ya conoces, el importe es el esperado, la cuenta de pago no ha cambiado y el archivo adjunto es el PDF esperado.'
+    },
+    {
+      id:'microsoft', color:'#e3008c', initials:'MS', name:'Microsoft: equipo de cuentas', addr:'avisos@micr0soft-seguretat.com', time:'Ayer', when:'Ayer, 22:05',
+      subj:'Microsoft: contraseña caducada', prev:'Tu contraseña caducará en 24 horas. Actualízala ahora.',
+      body:'<p><b>Estimado usuario,</b></p><p>Tu contraseña de Microsoft 365 <b>caducará en 24 horas</b>. Si no la actualizas ahora, <b>perderás el acceso a tu correo y a tus archivos</b>.</p><p><a class="cta" href="#" data-url="https://login.microsoft-verificacio.net/aut?id=88213">Actualizar contraseña</a></p><p class="sig">Equipo de cuentas de Microsoft</p>',
+      danger:true,
+      why:'Dirección falsa (<i>micr0soft</i>, con un cero) y enlace que no pertenece a Microsoft. Además, intenta meterte prisa.'
+    },
+    {
+      id:'teams', color:'#6264a7', initials:'LF', name:'Laura Ferrer', addr:'laura.ferrer@lafact.cat', time:'Ayer', when:'Ayer, 17:30',
+      subj:'Invitación de Teams', prev:'Reunión semanal de equipo · jueves 10:00',
+      body:'<p>¡Hola!</p><p>Te invito a la <b>reunión semanal de equipo</b> de este jueves a las 10:00.</p><p><a class="cta" href="#" data-url="https://teams.microsoft.com/l/meetup-join/19%3ameeting_ZXF4...">Unirse a la reunión de Microsoft Teams</a></p><p class="sig">Hasta el jueves,<br>Laura</p>',
+      danger:false,
+      why:'<b>Seguro.</b> Lo envía una compañera con una dirección interna y el enlace lleva a <i>teams.microsoft.com</i>, el dominio real de Teams. Era una reunión que esperabas.'
+    },
+    {
+      id:'direccio', color:'#c4314b', initials:'D', name:'Dirección', addr:'direccio.lafact@outlook.com', time:'Lun.', when:'Lunes, 11:20',
+      subj:'Transferencia urgente – confidencial', prev:'Necesito que hagas una transferencia hoy antes de las 14h…',
+      body:'<p>Hola,</p><p>Necesito que hagas hoy <b>antes de las 14:00</b> una transferencia de <b>200 €</b> a un proveedor nuevo. Es un tema muy confidencial, <b>no se lo comentes a nadie</b>.</p><p>IBAN: ES12 3456 7890 1234 5678 9012</p><p>Ahora estoy en una reunión y no puedo atenderte por teléfono. Responde únicamente a este correo cuando lo hayas hecho.</p><p class="sig">Dirección</p>',
+      danger:true,
+      why:'Escribe desde una dirección <i>@outlook.com</i>, no desde la empresa, y pide dinero con prisas y en secreto.'
+    },
+    {
+      id:'amazon', color:'#ff9900', initials:'A', name:'Amazon.es', addr:'shipment-tracking@amazon.es', time:'Lun.', when:'Lunes, 08:03',
+      subj:'Amazon: pedido enviado', prev:'Tu pedido 171-2345678-1234567 ya está en camino.',
+      body:'<p>Hola,</p><p>Tu pedido <b>#171-2345678-1234567</b> (<i>Teclado inalámbrico</i>) ya ha salido del almacén y llegará mañana.</p><p><a class="cta" href="#" data-url="https://www.amazon.es/gp/your-account/order-details?orderID=171-2345678-1234567">Seguir el paquete</a></p><p class="sig">Amazon.es</p>', 
+      danger:false, 
+      why:'<b>Seguro.</b> La dirección y el enlace pertenecen al dominio real <i>amazon.es</i>, y se trata de un pedido que has realizado tú. (Si no hubieras comprado nada, tampoco deberías fiarte.)' 
+    } 
+  ]; 
+
+  // Orden de aparición en la bandeja
+  var ORDER = ['nomina','factura','microsoft','teams','direccio','amazon']; 
+  var byId = {}; MAILS.forEach(function(m){ byId[m.id]=m; }); 
+ 
+  var state = { sel:null, read:{}, marked:{} }; 
+ 
+  /* ---------- UTILIDADES ---------- */ 
+  var $ = function(id){ return document.getElementById(id); }; 
+  var toastT; 
+  function toast(msg){ 
+    var t=$('toast'); t.textContent=msg; t.classList.add('show'); 
+    clearTimeout(toastT); toastT=setTimeout(function(){ t.classList.remove('show'); },3200); 
+  } 
+  function markedCount(){ return Object.keys(state.marked).filter(function(k){return state.marked[k];}).length; } 
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); } 
+ 
+  /* ---------- LISTA ---------- */ 
+  function renderList(){ 
+    var h=''; 
+    ORDER.forEach(function(id){ 
+      var m=byId[id]; 
+      var cls='mail'+(state.sel===id?' sel':'')+(state.read[id]?'':' unread'); 
+      h+='<button type="button" class="'+cls+'" data-id="'+id+'">' 
+        +'<div class="avatar" style="background:'+m.color+'">'+m.initials+'</div>' 
+        +'<div class="t"><div class="r1"><span class="from">'+esc(m.name)+'</span><span class="time">'+m.time+'</span></div>' 
+        +'<div class="subj">'+esc(m.subj)+'</div><div class="prev">'+esc(m.prev)+'</div></div>' 
+        +(state.marked[id]?'<span class="flagmark" title="Marcado como peligroso">🚩</span>':'') 
+        +'</button>'; 
+    }); 
+    $('list').innerHTML=h; 
+  } 
+ 
+  /* ---------- LECTOR ---------- */ 
+  function openMail(id){ 
+    var m=byId[id]; state.sel=id; state.read[id]=true; 
+    $('empty').hidden=true; var rd=$('rd'); rd.hidden=false; 
+    rd.innerHTML= 
+      '<button type="button" class="back" id="backBtn">← Volver a la bandeja</button>' 
+      +'<h1>'+esc(m.subj)+'</h1>' 
+      +'<div class="sender"><div class="avatar" style="background:'+m.color+'">'+m.initials+'</div>' 
+      +'<div><span class="sname">'+esc(m.name)+'</span> ' 
+      +'<span class="addr show" id="addr">&lt;'+esc(m.addr)+'&gt;</span>' 
+      +'<div class="meta">Para: Tú · '+m.when+'</div></div></div>' 
+      +'<div class="actions"><button type="button" class="flagbtn'+(state.marked[id]?' on':'')+'" id="flagBtn">🚩 <span>'+(state.marked[id]?'Marcado como peligroso':'Marcar como peligroso')+'</span></button></div>' 
+      +'<div class="msg">'+m.body+'</div>'; 
+    rd.querySelectorAll('a.cta[data-url]').forEach(function(a){ 
+      var d=document.createElement('div'); d.className='linkurl'; 
+      d.innerHTML='🔗 Este enlace lleva a: <b>'+esc(a.dataset.url)+'</b>'; 
+      a.parentNode.insertAdjacentElement('afterend',d); 
+    }); 
+    $('body').classList.add('reading'); 
+    renderList(); hideStatus(); 
+  } 
+  function hideStatus(){ $('status').style.display='none'; } 
+  function showStatus(u){ var s=$('status'); s.textContent=u; s.style.display='block'; } 
+ 
+  /* ---------- EVENTOS ---------- */ 
+  $('list').addEventListener('click',function(e){ 
+    var b=e.target.closest('.mail'); if(b) openMail(b.dataset.id); 
+  }); 
+ 
+  $('rd').addEventListener('click',function(e){ 
+    var t=e.target; 
+    if(t.closest('#backBtn')){ $('body').classList.remove('reading'); return; } 
+    var sn=t.closest('#snameBtn'); 
+    if(sn){ 
+      var a=$('addr'); var show=a.hidden; a.hidden=!show; a.classList.toggle('show',show); 
+      sn.setAttribute('aria-expanded',show?'true':'false'); return; 
+    } 
+    var fb=t.closest('#flagBtn'); 
+    if(fb){ toggleMark(state.sel); return; } 
+    var link=t.closest('a[data-url]'); 
+    if(link){ e.preventDefault(); toast('🔒 Simulación: el enlace no se abre. Habrías ido a → '+link.dataset.url); return; } 
+    var file=t.closest('a[data-file]'); 
+    if(file){ e.preventDefault(); toast('📎 Simulación: el archivo adjunto no se abre ('+file.dataset.file+').'); return; } 
+  }); 
+
+  $('rd').addEventListener('mouseover',function(e){ 
+    var l=e.target.closest('a[data-url]'); if(l) showStatus(l.dataset.url); 
+  }); 
+  $('rd').addEventListener('mouseout',function(e){ 
+    if(e.target.closest('a[data-url]')) hideStatus(); 
+  }); 
+  $('rd').addEventListener('focusin',function(e){ 
+    var l=e.target.closest('a[data-url]'); if(l) showStatus(l.dataset.url); 
+  }); 
+  $('rd').addEventListener('focusout',hideStatus); 
+ 
+  function toggleMark(id){ 
+    if(!state.marked[id] && markedCount()>=2){ 
+      toast('Ya has marcado 2 correos. Desmarca uno si quieres cambiar tu respuesta.'); return; 
+    } 
+    state.marked[id]=!state.marked[id]; 
+    if(!state.marked[id]) delete state.marked[id]; 
+    var on=!!state.marked[id]; 
+    var fb=$('flagBtn'); if(fb){ fb.classList.toggle('on',on); fb.querySelector('span').textContent=on?'Marcado como peligroso':'Marcar como peligroso'; } 
+    updateBar(); renderList(); 
+  } 
+
+  function updateBar(){ 
+    $('count').textContent=markedCount(); 
+    $('checkBtn').disabled = markedCount()!==2; 
+  } 
+ 
+  $('solBtn').addEventListener('click',function(){ showSolution(false); }); 
+ 
+  /* ---------- COMPROBAR ---------- */ 
+  $('checkBtn').addEventListener('click',function(){ 
+    var hits=0; 
+    MAILS.forEach(function(m){ if(m.danger && state.marked[m.id]) hits++; }); 
+    var wrongMarked = markedCount()-hits; 
+    if(hits===2){ showSolution(true); } 
+    else { 
+      var html='<h2>'+(hits===1?'¡Casi!':'Todavía no…')+'</h2>' 
+        +'<p class="lead">Has acertado <b>'+hits+' de 2</b>. '+(wrongMarked>0?'Hay algún correo legítimo que has marcado por error. ':'')+'Sigue investigando: comprueba las direcciones de los remitentes y adónde llevan los enlaces.</p>' 
+        +'<div class="mbtns"><button class="ghost" id="seeSol" type="button">Ver la solución</button><button class="primary" id="keepOn" type="button">Seguir investigando</button></div>'; 
+      openModal(html); 
+      $('keepOn').onclick=closeModal; 
+      $('seeSol').onclick=function(){ showSolution(false); }; 
+    } 
+  }); 
+ 
+  function showSolution(won){ 
+    var h='<h2>'+(won?'🎉 ¡Bien hecho!':'Solución')+'</h2>' 
+      +'<p class="lead">'+(won?'Has encontrado los dos correos peligrosos.':'Estos son los dos correos peligrosos:')+'</p>'; 
+    ORDER.forEach(function(id){ 
+      var m=byId[id]; if(!m.danger) return; 
+      h+='<div class="res bad"><div class="ic">🚨</div><div><b>'+esc(m.subj)+'</b><small>'+m.why+'</small></div></div>'; 
+    }); 
+    h+='<div class="res good"><div class="ic">✅</div><div><b>Los otros 4 son seguros</b><small>El remitente y el enlace coinciden con la empresa o el servicio real.</small></div></div>' 
+      +'<div class="rule"><b>Recuerda:</b> revisa la dirección y el enlace, desconfía de las prisas y, si tienes dudas, compruébalo por teléfono.</div>' 
+      +'<div class="mbtns"><button class="ghost" id="restart" type="button">Volver a empezar</button><button class="primary" id="closeSol" type="button">Cerrar</button></div>'; 
+    openModal(h); 
+    $('closeSol').onclick=closeModal; 
+    $('restart').onclick=function(){ state={sel:null,read:{},marked:{}}; $('rd').hidden=true; $('empty').hidden=false; $('body').classList.remove('reading'); updateBar(); renderList(); closeModal(); }; 
+  } 
+
+  function openModal(html){ $('modal').innerHTML=html; $('overlay').classList.add('show'); } 
+  function closeModal(){ $('overlay').classList.remove('show'); } 
+
+  $('overlay').addEventListener('click',function(e){ if(e.target===this) closeModal(); }); 
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeModal(); }); 
+ 
+  renderList(); updateBar(); 
+})();
+</script>
+</body>
+</html>
